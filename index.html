@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biorhythm Dashboard</title>
+    <style>
+        :root {
+            --bg: #f8f9fa; --card: #ffffff; --text: #1e252b; --sub: #4a5560; --border: #dcdde1; --btn: #0984e3;
+            --p: #2ecc71; --e: #0984e3; --i: #218c74; --p-bg: rgba(46,204,113,0.08); --e-bg: rgba(9,132,227,0.08); --i-bg: rgba(33,140,116,0.08);
+            --grid: #e2e8f0; --wknd: rgba(74,85,96,0.08);
+            --wave-p: var(--p); --wave-e: var(--e); --wave-i: var(--i); --text-sub: var(--sub);
+        }
+        [data-theme="dark"] {
+            --bg: #1e272e; --card: #2f3640; --text: #ffffff; --sub: #a4b0be; --border: #4a5560; --btn: #1e90ff;
+            --p: #2ecc71; --e: #1e90ff; --i: #ffa502; --p-bg: rgba(46,204,113,0.12); --e-bg: rgba(30,144,255,0.12); --i-bg: rgba(255,165,2,0.12);
+            --grid: #4a5560; --wknd: rgba(113,128,147,0.15);
+            --wave-p: var(--p); --wave-e: var(--e); --wave-i: var(--i); --text-sub: var(--sub);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 2rem 1rem; transition: background 0.2s, color 0.2s; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .theme-btn { background: var(--btn); color: #fff; border: none; padding: 0.4rem 0.6rem; font-size: 1.1rem; line-height: 1; border-radius: 6px; cursor: pointer; }
+        .snap-btn { background: transparent; color: var(--btn); border: 1.5px solid var(--btn); padding: 0.35rem 0.85rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+        .snap-btn:hover:not(:disabled) { background: var(--btn); color: #fff; }
+        .snap-btn:disabled { opacity: 0.3; cursor: default; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .hidden { display: none !important; }
+        .form { display: grid; grid-template-columns: 1fr; gap: 1rem; align-items: end; }
+        @media (min-width: 768px) { .form { grid-template-columns: 1fr 1fr auto; } }
+        .group { display: flex; flex-direction: column; }
+        .group label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; opacity: 0.8; }
+        .group input, .group select { width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: inherit; font-size: 0.95rem; }
+        .calc-btn { background: #218c74; color: white; border: none; padding: 0.75rem 1.5rem; font-size: 0.95rem; font-weight: 700; border-radius: 8px; cursor: pointer; width: 100%; text-transform: uppercase; }
+        .section-hdr { font-size: 1.1rem; font-weight: 700; color: #ffa502; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        .grid-stats { display: grid; grid-template-columns: 1fr; gap: 1rem; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        @media (min-width: 768px) { .grid-stats { grid-template-columns: 1fr 1fr; } }
+        .box { padding: 0.75rem 1rem; border-radius: 6px; border-left: 4px solid transparent; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .warn-title { font-size: 0.75rem; font-weight: 700; color: #ff4757; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .chart-box { width: 100%; overflow-x: auto; }
+        .chart-view { width: 100%; min-width: 800px; height: 360px; padding: 10px; }
+        svg { width: 100%; height: 100%; display: block; overflow: visible; }
+        .legend { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1rem; font-size: 0.85rem; font-weight: 600; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-line { width: 30px; height: 4px; border-radius: 2px; }
+        .date-btn { width:100%; padding:0.65rem 0.9rem; border-radius:8px; border:2px solid var(--btn); background:transparent; color:var(--btn); font-size:0.95rem; font-weight:600; text-align:left; cursor:pointer; transition:all 0.18s; letter-spacing:0.03em; box-shadow: 0 0 0 0 var(--btn); }
+        .date-btn:hover { background: var(--btn); color:#fff; box-shadow: 0 0 12px rgba(57,255,20,0.35); }
+        .date-btn::after { content: ' ✎'; font-size:0.75rem; opacity:0.6; }
+        #dateModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:center; justify-content:center; }
+        #dateModal.open { display:flex; }
+        #dateModalBox { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:2rem; min-width:320px; box-shadow:0 20px 60px rgba(0,0,0,0.35); }
+        #dateModalBox h3 { font-size:0.75rem; font-weight:700; text-transform:uppercase; opacity:0.5; letter-spacing:0.08em; margin-bottom:1.5rem; }
+        .dmp-row { display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:1rem; margin-bottom:1.75rem; }
+        .dmp-col { display:flex; flex-direction:column; align-items:center; gap:0.4rem; }
+        .dmp-col label { font-size:0.7rem; font-weight:700; text-transform:uppercase; opacity:0.5; }
+        .dmp-col input { width:100%; font-size:2rem; font-weight:700; text-align:center; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:0.5rem 0.25rem; -moz-appearance:textfield; }
+        .dmp-col input::-webkit-outer-spin-button, .dmp-col input::-webkit-inner-spin-button { -webkit-appearance:none; }
+        .dmp-col input:focus { outline:none; border-color:var(--btn); border-width:2px; box-shadow: 0 0 0 3px rgba(57,255,20,0.18), 0 0 14px rgba(57,255,20,0.28); }
+        #dateModalBox .set-btn { width:100%; padding:0.8rem; background:var(--btn); color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer; }
+        .palette-bar { display: flex; align-items: center; gap: 0.5rem; }
+        .pal-dot { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid transparent; cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
+        .pal-dot:hover { transform: scale(1.2); }
+        .pal-dot.active { border-color: var(--text); transform: scale(1.15); }
+        .pal-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.4; margin-right: 0.25rem; }
+        #tooltip { position: fixed; pointer-events: none; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.9rem; font-size: 0.8rem; line-height: 1.7; box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 999; min-width: 160px; transition: opacity 0.1s; }
+        #tooltip.hidden { opacity: 0; }
+        #tooltip .tt-date { font-weight: 700; font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        #tooltip .tt-row { display: flex; justify-content: space-between; gap: 1rem; font-weight: 600; }
+        .app-footer { text-align:center; padding:2rem 1rem 1.5rem; font-size:0.75rem; opacity:0.4; letter-spacing:0.03em; }
+        .footer-link { color:inherit; text-decoration:none; background:none; border:none; cursor:pointer; font-size:inherit; font-family:inherit; opacity:0.8; padding:0; }
+        .footer-link:hover { opacity:1; text-decoration:underline; }
+    </style>
+    <style id="palette-override"></style>
+</head>
+
+<body data-theme="dark">
+    <div class="container">
+        <header class="header">
+            <div>
+                <h1 style="font-size:1.5rem; font-weight:700; display:flex; align-items:center; gap:0.4rem;"><span style="font-size:2.2rem; line-height:1; filter:grayscale(1) drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 14px rgba(57,255,20,0.5));">🧬</span> BIORHYTHM</h1>
+                <p style="font-size:0.875rem; opacity:0.7;">Personalized Analytics Forecast Dashboard</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;">
+                <div class="palette-bar">
+                    <span class="pal-label">Palette</span>
+                    <div class="pal-dot" id="pal-0" title="Cosmos" onclick="setPalette(0)" style="background:linear-gradient(135deg,#34d399,#a78bfa);"></div>
+                    <div class="pal-dot" id="pal-1" title="Dusk"   onclick="setPalette(1)" style="background:linear-gradient(135deg,#e879f9,#fb923c);"></div>
+                    <div class="pal-dot" id="pal-2" title="Nordic" onclick="setPalette(2)" style="background:linear-gradient(135deg,#a6e3a1,#89b4fa);"></div>
+                    <div class="pal-dot" id="pal-3" title="Ember"  onclick="setPalette(3)" style="background:linear-gradient(135deg,#86efac,#fcd34d);"></div>
+                    <div class="pal-dot" id="pal-4" title="Neon"   onclick="setPalette(4)" style="background:linear-gradient(135deg,#39ff14,#00e5ff);"></div>
+                </div>
+                <button id="themeToggle" class="theme-btn">☀️</button>
+            </div>
+        </header>
+        <div class="card form">
+            <div class="group">
+                <label>Enter Birth Date</label>
+                <button class="date-btn" id="dateDisplay" onclick="openDateModal()">1995 · May · 15</button>
+                <input type="hidden" id="birthDate" value="1995-05-15">
+            </div>
+            <div class="group">
+                <label>Forecast Horizon</label>
+                <select id="monthsToTrack">
+                    <option value="1" selected>1 Month</option>
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="12">12 Months</option>
+                </select>
+            </div>
+            <div><button id="calculateBtn" class="calc-btn">Generate Analysis</button></div>
+            <div style="display:flex; gap:0.5rem;">
+                <button class="snap-btn" id="snapToday" onclick="snapZoom(0,3)" disabled>Today</button>
+                <button class="snap-btn" id="snapWeek"  onclick="snapZoom(0,7)" disabled>Week</button>
+            </div>
+        </div>
+        <div id="summaryPanel" class="card hidden">
+            <h2 class="section-hdr">>> TODAY AT A GLANCE</h2>
+            <div class="grid-stats">
+                <p>• <span style="opacity:0.7;">Days Alive:</span> <span id="daysAlive" style="font-weight:700;">0</span></p>
+                <p>• <span style="opacity:0.7;">Maximum Synergy Peak:</span> <span id="maxSynergy" style="font-weight:700; color:#2ed573;">N/A</span></p>
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <h3 style="font-size:0.75rem; font-weight:700; color:#1e90ff; margin-bottom:0.75rem;">>> TODAY'S FOCUS — a heads-up, not a verdict</h3>
+                <div id="physAdvice" class="box"></div>
+                <div id="emoAdvice" class="box"></div>
+                <div id="intelAdvice" class="box"></div>
+            </div>
+            <div>
+                <h3 class="warn-title">>> CRITICAL TRANSITION WARNINGS</h3>
+                <ul id="criticalDays" style="list-style:none; font-size:0.875rem; color:#ff6b81; font-weight:500;"></ul>
+            </div>
+        </div>
+        <div class="card hidden" id="mentorCard">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+                <div style="flex:1;">
+                    <div class="section-hdr">>> TODAY'S READING</div>
+                    <p id="mentorText" style="margin-top:0.6rem; font-size:0.95rem; line-height:1.75; color:var(--sub); max-width:68ch;"></p>
+                    <div id="askPromptBox" style="display:none; margin-top:0.75rem;">
+                        <textarea id="askPromptText" readonly onclick="this.select()" style="width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--sub); font-size:0.78rem; line-height:1.6; resize:none; height:72px; cursor:text;"></textarea>
+                        <div style="font-size:0.7rem; opacity:0.45; margin-top:0.3rem;">Select all · Copy · Paste into Claude</div>
+                    </div>
+                </div>
+                <button id="askClaudeBtn" class="snap-btn" style="display:none; font-size:0.75rem; white-space:nowrap; flex-shrink:0;" onclick="askClaude()" title="Opens claude.ai · your question appears below — copy &amp; paste it in">Ask Claude →</button>
+            </div>
+        </div>
+        <div id="chartPanel" class="card hidden">
+            <h2 style="font-size:1.1rem; font-weight:700; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;"><span style="filter:grayscale(1) drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 14px rgba(57,255,20,0.5));">🧬</span> WAVE ANALYTICS TIMELINE</h2>
+            <div class="chart-box">
+                <div id="svgContainer" class="chart-view"></div>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-line" style="background:var(--wave-p);"></div><span style="color:var(--wave-p)">Physical (23d)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="border-top:2px dashed var(--wave-e); width:30px;"></div><span style="color:var(--wave-e)">Emotional (28d)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="border-top:2px dotted var(--wave-i); width:30px;"></div><span style="color:var(--wave-i)">Intellectual (33d)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="aboutModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; align-items:flex-start; justify-content:center; overflow-y:auto; padding:3rem 1rem;" onclick="if(event.target===this)closeAbout()">
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:2rem; width:min(680px,100%); position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 style="font-size:1rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; opacity:0.6;">About This · The Biorythm Tool</h2>
+                <button onclick="closeAbout()" style="background:none; border:none; cursor:pointer; font-size:1.3rem; opacity:0.4; line-height:1;">✕</button>
+            </div>
+            <div style="font-size:0.9rem; line-height:1.8; color:var(--sub);">
+                <p style="margin-bottom:1.1rem;"><strong style="color:var(--text);">The Honest Part First.</strong> Biorhythms are <strong style="color:var(--text);">not science</strong>. Controlled studies comparing biorhythm predictions against athletic performance, accident rates, and cognitive test scores find the cycles perform <strong style="color:var(--text);">no better than chance</strong>. This tool <strong style="color:var(--text);">does not dispute</strong> that.</p>
+
+                <p style="margin-bottom:1.1rem;"><strong style="color:var(--text);">The Company It Keeps.</strong> What biorhythms share is a <strong style="color:var(--text);">long tradition</strong> with shaman tools that are equally "unscientific" and equally persistent across human cultures: tarot cards (14th-century Europe), the I Ching (China, ~1000 BCE), astrology (Babylonian in origin), numerology — and, in its modern form, <strong style="color:var(--text);">psychotherapy</strong>. A therapist offers you a symbolic framework: the unconscious, attachment styles, cognitive distortions. You locate yourself within it. Something shifts. The framework does not need to be <strong style="color:var(--text);">literally true</strong> to be useful. It needs to be coherent enough to <strong style="color:var(--text);">hold your attention</strong> and open enough to receive projection.</p>
+
+                <p style="margin-bottom:1.1rem;"><strong style="color:var(--text);">What Actually Happens.</strong> When you sit with a tarot spread, an I Ching hexagram, or a biorhythm chart and ask <em>"what does this mean for me today?"</em> — you are receiving information from your <strong style="color:var(--text);">inside universe</strong>. You are performing an act of <strong style="color:var(--text);">directed introspection</strong>. <strong style="color:var(--text);">The symbol is a prompt.</strong> The <strong style="color:var(--text);">insight comes from you</strong>. Carl Jung called this <em style="color:var(--e); font-style:italic; font-weight:600;">active imagination</em>: give the unconscious a surface to project onto, and in reaching toward it the mind reveals what it already knew but had not yet articulated. The Rorschach inkblot works on the same principle. There is nothing in the blot. Everything you see in it is yours.</p>
+
+                <p style="margin-bottom:1.1rem;"><strong style="color:var(--text);">Why a Sine Wave.</strong> The chart gives you a <strong style="color:var(--text);"><em>cycle</em></strong> to locate yourself within. "Am I in a high period or a low?" is a useful contemplative question — not because the math is tracking something real in your body, but because asking it builds a habit of <strong style="color:var(--text);">self-monitoring</strong>. <strong style="color:var(--text);">You check in. You pause.</strong> The sine wave is a <strong style="color:var(--text);">language</strong>: a rising-and-falling shape the human mind finds intuitive. We already think in rhythms. The chart gives that intuition a form to inhabit.</p>
+
+                <p style="margin-bottom:1.1rem;"><strong style="color:var(--text);">The Heads-Up Effect.</strong> When the chart tells you your emotional cycle is low today, something useful happens even before you check in with yourself: you are <strong style="color:var(--text);">now watching</strong>. The reticular activating system — the brain's <strong style="color:var(--text);">attention filter</strong> — has been handed a topic. For the rest of the day you will notice emotional moments, reactions, and moods that you would otherwise let pass unmarked. <strong style="color:var(--text);">The observation is real.</strong> The insight that comes from it is real. The sine wave that prompted it does not need to be.<br><br>This is what makes biorhythms — and tarot, and the I Ching, and a good therapy session — worth the time. <strong style="color:var(--text);">Not the system. The attention the system recruits.</strong></p>
+
+                <div style="margin-bottom:1.1rem;">
+                    <p style="margin-bottom:0.75rem;"><strong style="color:var(--text);">The Three Lenses.</strong> The chart gives you three domains to watch — not three predictions, but <strong style="color:var(--text);">three questions</strong>.</p>
+                    <ul style="list-style:none; display:flex; flex-direction:column; gap:0.4rem; margin-bottom:0.75rem;">
+                        <li>· <strong style="color:var(--text);">Physical</strong> — how does my body want to move today? Energy, appetite for effort, the quality of rest.</li>
+                        <li>· <strong style="color:var(--text);">Emotional</strong> — how close to the surface is feeling today? High means open; low means quieter — not worse, just more interior.</li>
+                        <li>· <strong style="color:var(--text);">Intellectual</strong> — where is my attention landing? Sharp and focused, or diffuse and wandering? Both are useful.</li>
+                    </ul>
+                    <p>You do not need to match the chart. You need only to <strong style="color:var(--text);">ask the question</strong> — and pay attention to the answer that arrives.</p>
+                </div>
+
+                <p><strong style="color:var(--text);">How to Use It.</strong> Treat the chart as a <strong style="color:var(--text);">daily question, not a daily answer</strong>. Open it the way you might open a journal. Look at where the three waves sit today. Ask: <em>does this match how I feel?</em> If it does — stay with that. If it doesn't — that is equally interesting. You are giving your <strong style="color:var(--text);">subconscious</strong> a structured prompt. The chart shows a high, a low, a crossing. You notice. You let that awareness land — and <strong style="color:var(--text);">consciousness sharpens</strong> around it. That is enough.</p>
+            </div>
+        </div>
+    </div>
+    <div id="dateModal" onclick="if(event.target===this)closeDateModal()">
+        <div id="dateModalBox">
+            <h3>Birth Date</h3>
+            <div class="dmp-row">
+                <div class="dmp-col"><label>Day</label><input type="number" id="dmpDay" min="1" max="31"></div>
+                <div class="dmp-col"><label>Month</label><input type="number" id="dmpMonth" min="1" max="12"></div>
+                <div class="dmp-col"><label>Year</label><input type="number" id="dmpYear" min="1900" max="2099"></div>
+            </div>
+            <button class="set-btn" onclick="confirmDate()">Set Date</button>
+        </div>
+    </div>
+    <div id="tooltip" class="hidden">
+        <div class="tt-date" id="tt-date"></div>
+        <div class="tt-row"><span style="color:var(--p)">Physical</span><span id="tt-p"></span></div>
+        <div class="tt-row"><span style="color:var(--e)">Emotional</span><span id="tt-e"></span></div>
+        <div class="tt-row"><span style="color:var(--i)">Intellectual</span><span id="tt-i"></span></div>
+    </div>
+    <script>
+    const PALETTES = [
+      { name:'Cosmos',
+        light:{ bg:'#f5f3ff',card:'#ffffff',text:'#111827',sub:'#6b7280',border:'#e5e7eb',btn:'#6366f1',p:'#059669',e:'#7c3aed',i:'#d97706',pbg:'rgba(5,150,105,0.08)',ebg:'rgba(124,58,237,0.08)',ibg:'rgba(217,119,6,0.08)',grid:'#e5e7eb',wknd:'rgba(99,102,241,0.05)' },
+        dark: { bg:'#0a0e1a',card:'#111827',text:'#e5e7eb',sub:'#9ca3af',border:'#1f2937',btn:'#6366f1',p:'#34d399',e:'#a78bfa',i:'#fbbf24',pbg:'rgba(52,211,153,0.12)',ebg:'rgba(167,139,250,0.12)',ibg:'rgba(251,191,36,0.12)',grid:'#1f2937',wknd:'rgba(255,255,255,0.04)' }
+      },
+      { name:'Dusk',
+        light:{ bg:'#faf5ff',card:'#ffffff',text:'#2d1f3d',sub:'#7c3aed',border:'#e9d5ff',btn:'#9333ea',p:'#16a34a',e:'#a21caf',i:'#ea580c',pbg:'rgba(22,163,74,0.08)',ebg:'rgba(162,28,175,0.08)',ibg:'rgba(234,88,12,0.08)',grid:'#e9d5ff',wknd:'rgba(147,51,234,0.05)' },
+        dark: { bg:'#1a1025',card:'#2d1f3d',text:'#f0e6ff',sub:'#b39ddb',border:'#3d2d50',btn:'#c084fc',p:'#4ade80',e:'#e879f9',i:'#fb923c',pbg:'rgba(74,222,128,0.12)',ebg:'rgba(232,121,249,0.12)',ibg:'rgba(251,146,60,0.12)',grid:'#3d2d50',wknd:'rgba(192,132,252,0.06)' }
+      },
+      { name:'Nordic',
+        light:{ bg:'#eff1f5',card:'#ffffff',text:'#4c4f69',sub:'#6c6f85',border:'#ccd0da',btn:'#1e66f5',p:'#40a02b',e:'#1e66f5',i:'#df8e1d',pbg:'rgba(64,160,43,0.08)',ebg:'rgba(30,102,245,0.08)',ibg:'rgba(223,142,29,0.08)',grid:'#ccd0da',wknd:'rgba(30,102,245,0.05)' },
+        dark: { bg:'#1c2333',card:'#243044',text:'#cdd6f4',sub:'#7f849c',border:'#2f3f58',btn:'#89b4fa',p:'#a6e3a1',e:'#89b4fa',i:'#f9e2af',pbg:'rgba(166,227,161,0.12)',ebg:'rgba(137,180,250,0.12)',ibg:'rgba(249,226,175,0.12)',grid:'#2f3f58',wknd:'rgba(137,180,250,0.06)' }
+      },
+      { name:'Ember',
+        light:{ bg:'#fefce8',card:'#fffbf0',text:'#451a03',sub:'#92400e',border:'#fde68a',btn:'#d97706',p:'#16a34a',e:'#0891b2',i:'#b45309',pbg:'rgba(22,163,74,0.08)',ebg:'rgba(8,145,178,0.08)',ibg:'rgba(180,83,9,0.08)',grid:'#fde68a',wknd:'rgba(217,119,6,0.05)' },
+        dark: { bg:'#1a1410',card:'#261e15',text:'#fef3c7',sub:'#a87d50',border:'#3d2d1f',btn:'#f59e0b',p:'#86efac',e:'#67e8f9',i:'#fcd34d',pbg:'rgba(134,239,172,0.12)',ebg:'rgba(103,232,249,0.12)',ibg:'rgba(252,211,77,0.12)',grid:'#3d2d1f',wknd:'rgba(245,158,11,0.06)' }
+      },
+      { name:'Neon',
+        light:{ bg:'#f0fff4',card:'#ffffff',text:'#1a3a1a',sub:'#3d7a3d',border:'#c3e6cb',btn:'#28a745',p:'#1a7a2a',e:'#c2185b',i:'#0277bd',pbg:'rgba(26,122,42,0.08)',ebg:'rgba(194,24,91,0.08)',ibg:'rgba(2,119,189,0.08)',grid:'#c3e6cb',wknd:'rgba(40,167,69,0.05)' },
+        dark: { bg:'#050f05',card:'#0a1f0a',text:'#d4f7d4',sub:'#5cb85c',border:'#143214',btn:'#39ff14',p:'#39ff14',e:'#ff2d78',i:'#00e5ff',pbg:'rgba(57,255,20,0.1)',ebg:'rgba(255,45,120,0.1)',ibg:'rgba(0,229,255,0.1)',grid:'#143214',wknd:'rgba(57,255,20,0.04)' }
+      }
+    ];
+
+    let activePalette = -1;
+
+    const NEON_GLOW = `
+      [data-palette="neon"][data-theme="dark"] .card {
+        box-shadow: 0 0 18px rgba(57,255,20,0.1), 0 0 1px rgba(57,255,20,0.5);
+        border-color: rgba(57,255,20,0.22) !important;
+      }
+      [data-palette="neon"][data-theme="dark"] #chartPanel {
+        box-shadow: 0 0 28px rgba(57,255,20,0.13), 0 0 1px rgba(57,255,20,0.5);
+      }
+      [data-palette="neon"][data-theme="dark"] #svgContainer svg {
+        filter: drop-shadow(0 0 4px rgba(57,255,20,0.55)) drop-shadow(0 0 10px rgba(57,255,20,0.2));
+      }
+      [data-palette="neon"][data-theme="dark"] .section-hdr,
+      [data-palette="neon"][data-theme="dark"] h1 {
+        text-shadow: 0 0 12px rgba(57,255,20,0.7);
+      }
+      [data-palette="neon"][data-theme="dark"] .calc-btn,
+      [data-palette="neon"][data-theme="dark"] .theme-btn {
+        box-shadow: 0 0 12px rgba(57,255,20,0.55), 0 0 24px rgba(57,255,20,0.2);
+      }
+      [data-palette="neon"][data-theme="dark"] .box {
+        box-shadow: 0 0 8px rgba(57,255,20,0.08);
+      }
+      [data-palette="neon"][data-theme="dark"] .pal-dot.active {
+        box-shadow: 0 0 10px #39ff14, 0 0 20px rgba(57,255,20,0.4);
+      }
+    `;
+
+    function setPalette(idx) {
+      const pal = PALETTES[idx];
+      const block = (c) => `
+        --bg:${c.bg};--card:${c.card};--text:${c.text};--sub:${c.sub};--border:${c.border};--btn:${c.btn};
+        --p:${c.p};--e:${c.e};--i:${c.i};--p-bg:${c.pbg};--e-bg:${c.ebg};--i-bg:${c.ibg};
+        --grid:${c.grid};--wknd:${c.wknd};
+        --wave-p:var(--p);--wave-e:var(--e);--wave-i:var(--i);--text-sub:var(--sub);`;
+      const neon = idx === 4 ? NEON_GLOW : '';
+      document.getElementById('palette-override').textContent =
+        `:root{${block(pal.light)}}[data-theme="dark"]{${block(pal.dark)}}${neon}`;
+      document.body.setAttribute('data-palette', pal.name.toLowerCase());
+      document.querySelectorAll('.pal-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+      activePalette = idx;
+      if (fullTimelineData.length > 0) redrawZoom();
+    }
+
+    let fullTimelineData = [];
+    let zoomState  = { start: 0, end: 0 };
+    let zoomTarget = { start: 0, end: 0 };
+    let zoomCur    = { start: 0, end: 0 };
+    let chartParams = null;
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        const b = document.body;
+        const isDark = b.getAttribute('data-theme') === 'dark';
+        b.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('themeToggle').textContent = isDark ? '🌙' : '☀️';
+        if (fullTimelineData.length > 0) renderChart();
+    });
+
+    document.getElementById('monthsToTrack').addEventListener('change', () => {
+        if (fullTimelineData.length > 0) renderChart();
+    });
+
+    document.getElementById('calculateBtn').addEventListener('click', runBiorhythmEngine);
+
+    function snapZoom(start, end) {
+        if (!fullTimelineData.length) return;
+        end = Math.min(end, fullTimelineData.length);
+        zoomTarget.start = start; zoomTarget.end = end;
+        zoomState.start  = start; zoomState.end  = end;
+        zoomCur.start    = start; zoomCur.end    = end;
+        buildSVGChart(fullTimelineData.slice(start, end));
+    }
+
+    function renderChart() {
+        const months = parseInt(document.getElementById('monthsToTrack').value) || 1;
+        const end = months * 30;
+        zoomState.start  = zoomTarget.start = zoomCur.start = 0;
+        zoomState.end    = zoomTarget.end   = zoomCur.end   = end;
+        redrawZoom();
+    }
+
+    function redrawZoom() {
+        buildSVGChart(fullTimelineData.slice(zoomState.start, zoomState.end));
+    }
+
+    function setupZoom() {
+        const container = document.getElementById('svgContainer');
+        container.style.cursor = 'grab';
+
+        let rafId = null;
+
+        function startAnimate() {
+            if (rafId) return;
+            rafId = requestAnimationFrame(function tick() {
+                const ease = 0.13;
+                zoomCur.start += (zoomTarget.start - zoomCur.start) * ease;
+                zoomCur.end   += (zoomTarget.end   - zoomCur.end)   * ease;
+                const settled = Math.abs(zoomCur.start - zoomTarget.start) < 0.25 &&
+                                Math.abs(zoomCur.end   - zoomTarget.end)   < 0.25;
+                if (settled) { zoomCur.start = zoomTarget.start; zoomCur.end = zoomTarget.end; rafId = null; }
+                else         { rafId = requestAnimationFrame(tick); }
+                const s = Math.max(0,   Math.round(zoomCur.start));
+                const e = Math.min(360, Math.round(zoomCur.end));
+                if (e > s) buildSVGChart(fullTimelineData.slice(s, e));
+            });
+        }
+
+        function clamp(s, end) {
+            const span = end - s;
+            if (s < 0)                        { s = 0;                           end = span; }
+            if (end > fullTimelineData.length) { end = fullTimelineData.length;  s = Math.max(0, end - span); }
+            return { s, end };
+        }
+
+        // Wheel zoom — use actual deltaY so trackpad gestures feel fine-grained
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (!fullTimelineData.length) return;
+            const rect = container.getBoundingClientRect();
+            const frac   = (e.clientX - rect.left) / rect.width;
+            const factor = Math.pow(1.0018, e.deltaY);          // ~1.005–1.05 per trackpad tick
+            const span   = zoomTarget.end - zoomTarget.start;
+            const newSpan = Math.max(7, Math.min(360, span * factor));
+            const pivot  = zoomTarget.start + frac * span;
+            const { s, end } = clamp(pivot - frac * newSpan, pivot - frac * newSpan + newSpan);
+            zoomTarget.start = s;  zoomTarget.end = end;
+            startAnimate();
+        }, { passive: false });
+
+        // Pan with post-release momentum
+        let dragging = false, dragX = 0, snapTgt = {};
+        let velX = 0, lastX = 0, lastT = 0, momentumId = null;
+
+        container.addEventListener('mousedown', (e) => {
+            dragging = true;  dragX = e.clientX;
+            lastX = e.clientX;  lastT = performance.now();
+            snapTgt = { ...zoomTarget };  velX = 0;
+            if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
+            container.style.cursor = 'grabbing';
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            const now = performance.now(), dt = now - lastT;
+            velX = dt > 0 ? (e.clientX - lastX) / dt : 0;  // px/ms
+            lastX = e.clientX;  lastT = now;
+
+            const rect  = container.getBoundingClientRect();
+            const span  = snapTgt.end - snapTgt.start;
+            const shift = -((e.clientX - dragX) / rect.width) * span;
+            const { s, end } = clamp(snapTgt.start + shift, snapTgt.end + shift);
+            zoomTarget.start = s;  zoomTarget.end = end;
+            zoomCur.start    = s;  zoomCur.end    = end;   // instant during active drag
+            zoomState.start = Math.round(s);  zoomState.end = Math.round(end);
+            buildSVGChart(fullTimelineData.slice(zoomState.start, zoomState.end));
+        });
+
+        const stopDrag = () => {
+            if (!dragging) return;
+            dragging = false;  container.style.cursor = 'grab';
+            const rect = container.getBoundingClientRect();
+            const span = zoomTarget.end - zoomTarget.start;
+            let vel = -(velX / rect.width) * span;   // days/ms
+            function coast() {
+                vel *= 0.88;                          // Apple-style deceleration
+                if (Math.abs(vel) < 0.02) return;
+                const { s, end } = clamp(zoomTarget.start + vel, zoomTarget.end + vel);
+                zoomTarget.start = s;  zoomTarget.end = end;
+                zoomCur.start    = s;  zoomCur.end    = end;
+                zoomState.start = Math.round(s);  zoomState.end = Math.round(end);
+                buildSVGChart(fullTimelineData.slice(zoomState.start, zoomState.end));
+                momentumId = requestAnimationFrame(coast);
+            }
+            if (Math.abs(velX) > 0.05) momentumId = requestAnimationFrame(coast);
+        };
+        container.addEventListener('mouseup',    stopDrag);
+        container.addEventListener('mouseleave', stopDrag);
+    }
+
+    setupZoom();
+
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function openDateModal() {
+        const val = document.getElementById('birthDate').value;
+        const [y, m, d] = val ? val.split('-').map(Number) : [1990, 1, 1];
+        document.getElementById('dmpDay').value   = d;
+        document.getElementById('dmpMonth').value = m;
+        document.getElementById('dmpYear').value  = y;
+        document.getElementById('dateModal').classList.add('open');
+        setTimeout(() => {
+            const d = document.getElementById('dmpDay');
+            d.focus();
+            d.select();
+        }, 50);
+    }
+
+    function closeDateModal() {
+        document.getElementById('dateModal').classList.remove('open');
+    }
+
+    function confirmDate() {
+        const d = parseInt(document.getElementById('dmpDay').value)   || 1;
+        const m = parseInt(document.getElementById('dmpMonth').value) || 1;
+        const y = parseInt(document.getElementById('dmpYear').value)  || 1990;
+        const dd = String(Math.min(Math.max(d, 1), 31)).padStart(2, '0');
+        const mm = String(Math.min(Math.max(m, 1), 12)).padStart(2, '0');
+        const yy = Math.min(Math.max(y, 1900), 2099);
+        document.getElementById('birthDate').value = `${yy}-${mm}-${dd}`;
+        document.getElementById('dateDisplay').textContent = `${yy} · ${MONTHS[m-1]} · ${dd}`;
+        closeDateModal();
+        runBiorhythmEngine();
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeDateModal(); closeAbout(); document.getElementById('mitModal').style.display='none'; }
+        if (e.key === 'Enter' && document.getElementById('dateModal').classList.contains('open')) confirmDate();
+    });
+
+    const MENTOR_MSGS = {
+      hhh: "Every current is running high — a rare confluence. Notice where your energy wants to go before the day fills itself in.",
+      hhm: "Body and heart are open today; mind is steady but unhurried. A good day to act on what you already know.",
+      hhl: "Physical and emotional energy are available, but thinking may feel slower than usual. Let feeling lead; analysis can follow.",
+      hmh: "Body and mind are sharp; emotion is quieter. A productive day for focused, independent work.",
+      hmm: "A balanced, functional day. Nothing exceptional in any direction — reliable ground to build on.",
+      hml: "Energy and capacity are here, but the intellectual current is low. Do the work that needs doing, not the work that needs solving.",
+      hlh: "Physical and intellectual currents are clear, but emotion may feel more interior today. Good for work that asks for calm precision.",
+      hlm: "The body is ready and the mind is steady, but feeling runs quiet. Notice what is present without pushing it to the surface.",
+      hll: "Physical energy is available, but both emotional and intellectual currents are low. Move the body — let thought and feeling rest.",
+      mhh: "Heart and mind are clear today; the physical current is steady. A good day for ideas that need both depth and feeling.",
+      mhm: "Emotion is running high with a stable background. Notice what comes up in you; it is closer to the surface than usual.",
+      mhl: "Emotional current is open, but the intellectual wave is quiet. Let feeling be felt — this is not a day for conclusions.",
+      mmh: "The intellectual current is running clearly today. A reliable day for thinking — mind is available even if body and heart are ordinary.",
+      mmm: "All three currents are mid-range today — a quiet, functional day. Sometimes the clearest mirror is a still one.",
+      mml: "A steady day with the intellectual current quieter than usual. Good for tasks that don't require deep focus.",
+      mlh: "Mind is clear and the body is stable, but emotion is more interior today. Useful for solitary, precise work.",
+      mlm: "A moderate day with feeling running low. Notice what is quiet in you — not every current needs to run high.",
+      mll: "Emotional and intellectual currents are both low today. A restful day — routine and gentleness are appropriate.",
+      lhh: "Heart and mind are alive today even as the body runs quiet. Less for doing, more for noticing.",
+      lhm: "Emotional current is open; body and mind are in steady background. What is present emotionally may be asking for attention.",
+      lhl: "Emotion is accessible, but body and intellect are quieter. A day for rest and feeling, not effort or analysis.",
+      lmh: "The intellectual current is clear even as the body runs low. Light physical effort; deep thinking.",
+      lmm: "Physical energy is low; the other currents are stable. Pace yourself — the body is conserving.",
+      lml: "Physical and intellectual currents are both low; emotion is steady. A quiet day — routine is your ally.",
+      llh: "Only the intellectual current is running clearly today. Rest the body and emotions; let the mind do light work.",
+      llm: "Physical and emotional currents are low; thinking is steady. A good day for background tasks and quiet observation.",
+      lll: "All three currents are quiet today. This is not a failure — it is a natural trough. Rest without guilt; the wave will rise."
+    };
+
+    function todayLevel(v) { return v >= 0.2 ? 'h' : v <= -0.2 ? 'l' : 'm'; }
+
+    function getMentorKey() {
+      const d = fullTimelineData[0];
+      return todayLevel(d.p) + todayLevel(d.e) + todayLevel(d.i);
+    }
+
+    function renderMentor() {
+      document.getElementById('mentorCard').classList.remove('hidden');
+      document.getElementById('mentorText').textContent = MENTOR_MSGS[getMentorKey()];
+    }
+
+    function updateAskBtn() {
+      const btn = document.getElementById('askClaudeBtn');
+      if (btn && fullTimelineData.length) {
+        btn.style.display = navigator.onLine ? 'inline-block' : 'none';
+      }
+    }
+    window.addEventListener('online',  updateAskBtn);
+    window.addEventListener('offline', updateAskBtn);
+
+    function askClaude() {
+      const d = fullTimelineData[0];
+      const prompt =
+        `My biorhythm today: Physical ${Math.round(d.p*100)}%, Emotional ${Math.round(d.e*100)}%, Intellectual ${Math.round(d.i*100)}%. ` +
+        `Based on these three cycles, what is one contemplative question I could sit with today — not a forecast, but a prompt for self-reflection?`;
+      const box  = document.getElementById('askPromptBox');
+      const area = document.getElementById('askPromptText');
+      area.value = prompt;
+      box.style.display = 'block';
+      area.select();
+      navigator.clipboard.writeText(prompt).catch(() => {});
+      window.open('https://claude.ai', '_blank');
+    }
+
+    function openAbout()  { document.getElementById('aboutModal').style.display = 'flex'; }
+    function closeAbout() { document.getElementById('aboutModal').style.display = 'none'; }
+
+    function setupTooltip() {
+        const container = document.getElementById('svgContainer');
+        const tip = document.getElementById('tooltip');
+
+        container.addEventListener('mousemove', (e) => {
+            if (!chartParams) return;
+            const { data, pL, W, cW, stepX, pT, cH } = chartParams;
+            const rect = container.getBoundingClientRect();
+            // Map screen X to SVG viewBox X
+            const svgX = ((e.clientX - rect.left) / rect.width) * W;
+            const idx = Math.round((svgX - pL) / stepX);
+            if (idx < 0 || idx >= data.length) { tip.classList.add('hidden'); return; }
+
+            const item = data[idx];
+            const line = document.getElementById('hoverLine');
+            if (line) {
+                const lx = pL + idx * stepX;
+                line.setAttribute("x1", lx); line.setAttribute("x2", lx);
+                line.style.display = "";
+            }
+
+            document.getElementById('tt-date').textContent =
+                item.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+            const fmt = (v) => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+            document.getElementById('tt-p').textContent = fmt(item.p);
+            document.getElementById('tt-e').textContent = fmt(item.e);
+            document.getElementById('tt-i').textContent = fmt(item.i);
+
+            // Position tooltip near cursor, keep it inside viewport
+            const tw = 180, th = 90;
+            let tx = e.clientX + 16, ty = e.clientY - 20;
+            if (tx + tw > window.innerWidth)  tx = e.clientX - tw - 16;
+            if (ty + th > window.innerHeight) ty = e.clientY - th - 10;
+            tip.style.left = tx + 'px';
+            tip.style.top  = ty + 'px';
+            tip.classList.remove('hidden');
+        });
+
+        container.addEventListener('mouseleave', () => {
+            tip.classList.add('hidden');
+            const line = document.getElementById('hoverLine');
+            if (line) line.style.display = 'none';
+        });
+    }
+    setupTooltip();
+    setPalette(4);  // default: Neon
+
+    function runBiorhythmEngine() {
+        const birthInput = document.getElementById('birthDate').value;
+        if (!birthInput) return alert("Please select a birth date.");
+
+        const yr = Number(birthInput.slice(0, 4));
+        const mo = Number(birthInput.slice(5, 7)) - 1;
+        const dy = Number(birthInput.slice(8, 10));
+
+        const today = new Date();
+        const birthDate = new Date(Date.UTC(yr, mo, dy));
+        const startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const daysAliveTotal = Math.floor((startDate.getTime() - birthDate.getTime()) / msPerDay);
+        document.getElementById('daysAlive').innerText = daysAliveTotal.toLocaleString();
+
+        const totalDaysToScan = 12 * 30;
+
+        fullTimelineData = [];
+        let peakVal = -999;
+        let peakDateStr = "";
+        let criticalDaysList = [];
+        let pSum = 0,
+            eSum = 0,
+            iSum = 0;
+
+        for (let x = 0; x < totalDaysToScan; x++) {
+            let d = new Date(startDate.getTime() + (x * msPerDay));
+            let t = Math.floor((d.getTime() - birthDate.getTime()) / msPerDay);
+
+            let p = Math.sin((2 * Math.PI * t) / 23);
+            let e = Math.sin((2 * Math.PI * t) / 28);
+            let i = Math.sin((2 * Math.PI * t) / 33);
+            let comp = (p + e + i) / 3;
+
+            if (x < 7) { pSum += p;
+                eSum += e;
+                iSum += i; }
+            fullTimelineData.push({ date: d, p: p, e: e, i: i });
+
+            if (comp > peakVal) {
+                peakVal = comp;
+                peakDateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+            }
+
+            if ((Math.abs(p) * 100 < 8 && Math.abs(e) * 100 < 8) || (Math.abs(e) * 100 < 8 && Math.abs(i) * 100 < 8) || (Math.abs(p) * 100 < 8 && Math.abs(i) * 100 < 8)) {
+                if (criticalDaysList.length < 4) {
+                    criticalDaysList.push(d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }));
+                }
+            }
+        }
+
+        document.getElementById('maxSynergy').innerText = `${peakDateStr} (${(peakVal * 100).toFixed(1)}%)`;
+
+
+        setAdvice('physAdvice', pSum / 7, "Physical Wave", '--wave-p', '--p-bg');
+        setAdvice('emoAdvice', eSum / 7, "Emotional Wave", '--wave-e', '--e-bg');
+        setAdvice('intelAdvice', iSum / 7, "Intellectual Wave", '--wave-i', '--i-bg');
+        const critBox = document.getElementById('criticalDays');
+        critBox.innerHTML = "";
+        if (criticalDaysList.length > 0) { criticalDaysList.forEach(day => { let li = document.createElement('li');
+                li.innerText = `• Phase Instability Predicted on: ${day}`;
+                critBox.appendChild(li); }); } else { critBox.innerHTML = "• No high-risk simultaneous neutral axis crossings tracked."; } document.getElementById('summaryPanel').classList.remove('hidden');
+        document.getElementById('chartPanel').classList.remove('hidden');
+        document.getElementById('snapToday').disabled = false;
+        document.getElementById('snapWeek').disabled  = false;
+        updateAskBtn();
+        renderChart();
+        renderMentor();
+    }
+
+    function setAdvice(id, score, name, waveClr, bgClr) {
+        const el = document.getElementById(id);
+        el.style.borderLeft = "4px solid var(" + waveClr + ")";
+        el.style.backgroundColor = "var(" + bgClr + ")";
+        el.style.color = "var(" + waveClr + ")";
+        const prompts = {
+            "Physical Wave": {
+                high: "Physical · High today — energy is available and clear. Notice where your body wants to move. Don't force it, just observe.",
+                mid:  "Physical · Steady today — a reliable baseline. Nothing to push against, nothing to conserve. A good day to simply notice.",
+                low:  "Physical · Quiet today — reserves feel closer to the surface. Rest without guilt. Notice what your body is asking for."
+            },
+            "Emotional Wave": {
+                high: "Emotional · Open today — feeling and connection come more readily. Worth paying attention to what surfaces in conversation or quiet moments.",
+                mid:  "Emotional · Even today — neither pulled nor pushed. A useful state for clear-headed decisions and honest self-assessment.",
+                low:  "Emotional · Turned inward today — less reactive, more reflective. Watch for what wants space. This can be a productive kind of quiet."
+            },
+            "Intellectual Wave": {
+                high: "Intellectual · Sharp today — attention and clarity feel available. Good for problems that need focused thought or creative leaps.",
+                mid:  "Intellectual · Functional today — reliable, nothing exceptional. Steady work, steady thinking. A good day for the things that just need doing.",
+                low:  "Intellectual · Diffuse today — hard thinking may feel like wading. Useful for rest, routine, or letting ideas drift without forcing them."
+            }
+        };
+        const p = prompts[name] || prompts["Physical Wave"];
+        el.innerText = score >= 0.2 ? p.high : score <= -0.2 ? p.low : p.mid;
+    }
+
+    function buildSVGChart(data) { const container = document.getElementById('svgContainer');
+        container.innerHTML = ""; const W = 1000,
+            H = 350,
+            pL = 50,
+            pR = 30,
+            pT = 20,
+            pB = 40; const cW = W - pL - pR,
+            cH = H - pT - pB,
+            cY = pT + (cH / 2); const style = getComputedStyle(document.body); const pClr = style.getPropertyValue('--p').trim(); const eClr = style.getPropertyValue('--e').trim(); const iClr = style.getPropertyValue('--i').trim(); const gridClr = style.getPropertyValue('--grid').trim(); const txtClr = style.getPropertyValue('--text-sub').trim(); const wkndClr = style.getPropertyValue('--wknd').trim(); const NS = "http://www.w3.org/2000/svg"; let svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`); const total = data.length; const stepX = cW / (total - 1);
+        data.forEach((item, idx) => { if (item.date.getUTCDay() === 6 || item.date.getUTCDay() === 0) { let rect = document.createElementNS(NS, "rect");
+                rect.setAttribute("x", pL + (idx * stepX) - (stepX / 2));
+                rect.setAttribute("y", pT);
+                rect.setAttribute("width", stepX + 0.6);
+                rect.setAttribute("height", cH);
+                rect.setAttribute("fill", wkndClr);
+                svg.appendChild(rect); } }); const gridLines = [pT, cY, pT + cH],
+            gridLabels = ["+1.0", "0.0", "-1.0"];
+        gridLines.forEach((y, i) => { let line = document.createElementNS(NS, "line");
+            line.setAttribute("x1", pL);
+            line.setAttribute("y1", y);
+            line.setAttribute("x2", W - pR);
+            line.setAttribute("y2", y);
+            line.setAttribute("stroke", gridClr);
+            line.setAttribute("stroke-width", i === 1 ? "1.5" : "1"); if (i !== 1) line.setAttribute("stroke-dasharray", "4,4");
+            svg.appendChild(line); let txt = document.createElementNS(NS, "text");
+            txt.setAttribute("x", pL - 10);
+            txt.setAttribute("y", y + 4);
+            txt.setAttribute("fill", txtClr);
+            txt.setAttribute("font-size", "10px");
+            txt.setAttribute("text-anchor", "end");
+            txt.textContent = gridLabels[i];
+            svg.appendChild(txt); }); const interval = Math.max(1, Math.floor(total / 12));
+        data.forEach((item, idx) => { if (idx % interval === 0) { let txt = document.createElementNS(NS, "text");
+                txt.setAttribute("x", pL + (idx * stepX));
+                txt.setAttribute("y", H - pB + 20);
+                txt.setAttribute("fill", txtClr);
+                txt.setAttribute("font-size", "10px");
+                txt.setAttribute("text-anchor", "middle");
+                txt.textContent = item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+                svg.appendChild(txt); } }); let pPts = [],
+            ePts = [],
+            iPts = [];
+        data.forEach((item, idx) => { let x = pL + (idx * stepX);
+            pPts.push(`${x},${cY - (item.p * (cH / 2))}`);
+            ePts.push(`${x},${cY - (item.e * (cH / 2))}`);
+            iPts.push(`${x},${cY - (item.i * (cH / 2))}`); });
+        drawPath(svg, pPts, pClr, "2.0", "none");
+        drawPath(svg, ePts, eClr, "2.2", "6,6");
+        drawPath(svg, iPts, iClr, "1.5", "3,3,1,3");
+
+        // Hover crosshair line (appended last so it renders on top)
+        const hoverLine = document.createElementNS(NS, "line");
+        hoverLine.setAttribute("id", "hoverLine");
+        hoverLine.setAttribute("y1", pT); hoverLine.setAttribute("y2", pT + cH);
+        hoverLine.setAttribute("stroke", "rgba(255,255,255,0.35)");
+        hoverLine.setAttribute("stroke-width", "1");
+        hoverLine.setAttribute("stroke-dasharray", "4,3");
+        hoverLine.style.display = "none";
+        svg.appendChild(hoverLine);
+
+        chartParams = { data, pL, pR, pT, pB, W, H, cW, cH, cY, stepX, total };
+        container.appendChild(svg); }
+
+    function drawPath(svg, pts, color, width, dash) {
+        let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", `M ${pts.join(" L ")}`);
+        path.setAttribute("stroke", color);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke-width", width);
+        path.setAttribute("stroke-linecap", "round");
+        if (dash !== "none") path.setAttribute("stroke-dasharray", dash);
+        svg.appendChild(path);
+    }
+
+
+    function showMit() {
+        document.getElementById('mitModal').style.display = 'flex';
+    }
+    </script>
+    <footer class="app-footer">
+        i am <strong><a class="footer-link" href="https://iprobot.com" target="_blank">iprobot,</a></strong> me and claude made this · 2026
+        · <button class="footer-link" id="footerAbout" onclick="openAbout()">About</button>
+        · <button class="footer-link" id="footerMit" onclick="showMit()">© MIT</button>
+    </footer>
+    <div id="mitModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:2rem; width:min(480px,90vw); font-size:0.82rem; line-height:1.8; color:var(--sub);">
+            <div style="font-weight:700; color:var(--text); margin-bottom:1rem; font-size:0.95rem;">MIT License</div>
+            <p>Copyright &copy; 2026 <a href="https://iprobot.com" target="_blank" style="color:var(--btn);">iprobot</a></p>
+            <br>
+            <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+            <br>
+            <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+            <br>
+            <p style="opacity:0.6;">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.</p>
+            <br>
+            <button onclick="document.getElementById('mitModal').style.display='none'" class="snap-btn" style="width:100%; margin-top:0.5rem;">Close</button>
+        </div>
+    </div>
+</body>
+</html>
